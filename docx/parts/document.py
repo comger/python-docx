@@ -13,6 +13,8 @@ from docx.parts.story import BaseStoryPart
 from docx.parts.styles import StylesPart
 from docx.shape import InlineShapes
 from docx.shared import lazyproperty
+from pptx.parts.chart import ChartPart
+from docx.oxml.shape import CT_Inline
 
 
 class DocumentPart(BaseStoryPart):
@@ -36,6 +38,16 @@ class DocumentPart(BaseStoryPart):
         rId = self.relate_to(header_part, RT.HEADER)
         return header_part, rId
 
+        
+    def add_chart(self, chart_type, x, y, cx, cy, chart_data):
+        """
+        Return an |InlineShape| instance containing the chart, added to the
+        end of this run.
+        """
+        inline, chart = self.part.new_chart_inline(chart_type, x, y, cx, cy, chart_data)
+        self._r.add_drawing(inline)
+        return chart
+
     @property
     def core_properties(self):
         """
@@ -58,6 +70,24 @@ class DocumentPart(BaseStoryPart):
     def footer_part(self, rId):
         """Return |FooterPart| related by *rId*."""
         return self.related_parts[rId]
+
+    def get_or_add_chart(self, chart_type, x, y, cx, cy, chart_data):
+        """
+        Return an (rId, chart) 2-tuple for the chart.
+        Access the chart properties like description in python-pptx documents.
+        """
+        chart_part = ChartPart.new(chart_type, chart_data, self.package)
+        rId = self.relate_to(chart_part, RT.CHART)
+        return rId, chart_part.chart
+
+    def new_chart_inline(self, chart_type, x, y, cx, cy, chart_data):
+        """
+        Return a newly-created `w:inline` element containing the chart
+        with position *x* and *y* and width *cx* and height *y*
+        """
+        rId, chart = self.get_or_add_chart(chart_type, x, y, cx, cy, chart_data)
+        shape_id = self.next_id
+        return CT_Inline.new_chart_inline(shape_id, rId, x, y, cx, cy), chart
 
     def get_style(self, style_id, style_type):
         """
